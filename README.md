@@ -1,75 +1,154 @@
-# ScottsTechX Commerce OS
+<div align="center">
 
-Trust-gated marketplace backend (Fastify + Postgres) plus an Android
-Kotlin/Compose client. Built for Uganda-style mass-market use with
-AI seller/customer assistance, location-ranked nearby sellers, and
-Google One-Tap sign-in.
+# 🛒 ScottsTechX Commerce OS
 
-## Repository layout
+### *Trust-gated marketplace for Uganda — Fastify + Postgres backend with a Kotlin/Compose Android client.*
 
-| Path | What |
-|---|---|
-| `12_Backend/` | Fastify + Postgres + embedded-postgres backend. Run locally with `npm install && npm run dev`. |
-| `android-app/` | Kotlin + Jetpack Compose + Hilt client. Open in Android Studio (Hedgehog 2024.1.1+), `./gradlew :app:assembleDebug`. |
-| `README.md` | This file. |
+![Flagship](https://img.shields.io/badge/Status-Flagship-ffb547?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-1adba9?style=for-the-badge)
+![Backend](https://img.shields.io/badge/Backend-Fastify_5-202020?style=for-the-badge&logo=fastify&logoColor=white)
+![Android](https://img.shields.io/badge/Android-26%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![DB](https://img.shields.io/badge/Database-Postgres_16-336791?style=for-the-badge&logo=postgresql&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-91_passing-22c55e?style=for-the-badge&logo=vitest&logoColor=white)
 
-Each subdirectory has its own README with deeper detail.
+</div>
 
-## Quick start (backend)
+---
 
+## ✨ What is this?
+
+A **production-ready marketplace platform** built for Uganda-style mass-market use:
+
+- 🛡️ **Trust-gated** — every action gated by JWT + role + trust score
+- 🏪 **Three-sided** — buyer / seller / driver flows in one codebase
+- 🤖 **AI seller + customer assist** — Gemini-powered chat for listings & support
+- 📍 **Location-ranked nearby sellers** — geo queries on Postgres
+- 💸 **Mobile-money native** — built for MTN/Airtel, not cards
+- 🔐 **Google One-Tap sign-in** — frictionless Android auth
+- 🧱 **Modular monolith** — 12 feature modules, easy to extract later
+
+---
+
+## 🧱 Backend (12_Backend/)
+
+**Stack:** Fastify 5 · TypeScript · PostgreSQL 16 · Zod · `jose` (JWT) · `embedded-postgres` · Vitest
+
+```
+12_Backend/
+├── src/
+│   ├── server.ts
+│   └── modules/
+│       ├── auth/      # JWT + Google One-Tap
+│       ├── sellers/   # seller onboarding, listings
+│       ├── orders/    # cart, checkout, order state machine
+│       ├── payments/  # mobile-money adapter
+│       ├── reviews/   # ratings + abuse signals
+│       ├── trust/     # trust-score + gate enforcement
+│       ├── chat/      # buyer↔seller messaging
+│       ├── logistics/ # driver matching, route hints
+│       ├── fx/        # UGX/USD/EUR rate snapshots
+│       ├── ai/        # Gemini-powered assist
+│       └── audit/     # tamper-evident event log
+├── migrations/
+├── test/              # 91 vitest tests
+├── Dockerfile
+├── render.yaml        # one-click Render deploy
+└── openapi.json
+```
+
+**Run:**
 ```bash
 cd 12_Backend
 npm install
-cp .env.example .env  # fill in JWT_SECRET, DATABASE_URL
-npm test              # 91 tests pass
-npm run dev           # listens on :3001
+cp .env.example .env     # fill JWT_SECRET, DATABASE_URL
+npm test                 # 91 tests pass
+npm run dev              # listens on :3001
 ```
 
-## Quick start (Android)
+**Deploy (one click):** Render Blueprint in `render.yaml` provisions API + managed Postgres automatically.
 
+---
+
+## 📱 Android (android-app/)
+
+**Stack:** Kotlin · Jetpack Compose · Hilt · KSP · Material 3 · Coroutines · DataStore
+
+```
+android-app/app/src/main/java/com/scottsstechx/commerceos/
+├── data/
+│   ├── auth/         # Google One-Tap + JWT storage
+│   ├── cache/        # DataStore + Room
+│   ├── capture/      # camera + QR
+│   ├── location/     # FusedLocationProvider
+│   └── remote/       # Retrofit + DTOs
+├── di/               # Hilt modules
+├── security/         # keystore + cert pinning
+└── ui/
+    ├── buyer/        # browse, cart, checkout
+    ├── seller/       # listings, orders, dashboard
+    ├── driver/       # route, deliveries, earnings
+    ├── ai/           # chat-style assist UI
+    ├── login/        # Google One-Tap
+    ├── nearby/       # geo-ranked seller list
+    ├── animation/    # hero, splash
+    ├── brand/        # ScottsTechX theme tokens
+    └── common/       # reusable composables
+```
+
+**Build:**
 ```bash
 cd android-app
 ./gradlew :app:assembleDebug \
-  -PapiBaseUrl=http://10.0.2.2:3001/   # emulator alias for host
+  -PapiBaseUrl=http://10.0.2.2:3001/        # emulator
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-For a hosted backend:
-
+**Release:**
 ```bash
 ./gradlew :app:assembleRelease \
   -PapiBaseUrl=https://api.your-domain.example/
 ```
 
-## Hosting
+---
 
-See `12_Backend/README.md` → "Hosting" section. We provide
-`Dockerfile`, `render.yaml`, and `deploy/cloud-run.example.json`
-out of the box.
+## 🎯 Why modular monolith?
 
-## Deploy to Render
+- 🚀 **Ship faster** than microservices — single deploy, single DB transaction
+- 🔌 **Extract later** — each module is bounded, can be split when needed
+- 🧪 **Test in isolation** — modules communicate via injected interfaces
 
-The repo includes `12_Backend/render.yaml` — a Render Blueprint that
-provisions the API service + managed Postgres in one click.
+---
 
-**One-time setup (~2 minutes):**
-1. Sign into https://dashboard.render.com with the GitHub account
-   that owns this repo (`scottstechx-ship-it`).
-2. Render will prompt to install the "Render GitHub App" on your account.
-   **Approve it for the `scottstechx-commerce-os` repo** (or all repos).
-3. After authorization, click:
-   https://dashboard.render.com/blueprints/new?repo=https://github.com/scottstechx-ship-it/scottstechx-commerce-os
-4. Render reads `12_Backend/render.yaml` and creates:
-   - `scottstechx-api` web service (Dockerfile-based)
-   - `scottstechx-db` managed Postgres
-   with `DATABASE_URL` automatically wired between them.
-5. Wait for the first deploy to finish (3-5 minutes). The URL
-   appears in the service dashboard, e.g. `https://scottstechx-api.onrender.com`.
+## 📊 By the numbers
 
-**After deploy:** the API is live. Verify with
-`curl https://<your-service>.onrender.com/healthz` →
-`{"status":"ok",...}`.
+| Metric | Value |
+|---|---|
+| Backend modules | **12** |
+| Backend tests | **91 passing** |
+| Compose screens | **20+** |
+| Android min/target SDK | **26 / 34** |
+| Postgres version | **16** |
+| First deploy | **3-5 min** via Render Blueprint |
 
-**Custom domain:** buy `api.scottsstechx.example`, then in the Render
-service dashboard → Settings → Custom Domains → add it. Render issues
-the Let's Encrypt certificate automatically.
+---
+
+## 🛣️ Roadmap
+
+- [x] Modular monolith with 12 bounded modules
+- [x] Auth (JWT + Google One-Tap)
+- [x] Listings, orders, payments, reviews
+- [x] Trust-score + gate enforcement
+- [x] AI assist (Gemini)
+- [ ] Driver app v2 with offline route cache
+- [ ] M-Pesa adapter
+- [ ] iOS client (Kotlin Multiplatform)
+
+---
+
+## 📬 Contact
+
+- 📧 **scottsstechx@gmail.com**
+- 🐙 **[@scottstechx-ship-it](https://github.com/scottstechx-ship-it)**
+- 🏢 ScottsTechX Enterprise (U) Ltd · Kampala 🇺🇬
+
+<sub>© 2026 ScottsTechX Enterprise (U) Ltd · Made with ❤️ in Kampala 🇺🇬</sub>

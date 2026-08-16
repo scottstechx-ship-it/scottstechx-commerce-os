@@ -8,7 +8,11 @@
  */
 
 import { spawn } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import EmbeddedPostgres from "embedded-postgres";
 
 const PORT = Number(process.env.SMOKE_PORT ?? 3099);
 const HOST = "127.0.0.1";
@@ -44,6 +48,28 @@ async function waitForReady(maxMs = 30000): Promise<boolean> {
 
 async function main(): Promise<number> {
   console.log(`[smoke] starting server on :${PORT}`);
+
+  // Boot a throwaway embedded Postgres unless DATABASE_URL is already set,
+  // so `npm run smoke` works on a machine with no Docker or system Postgres.
+  let pg: EmbeddedPostgres | null = null;
+  let databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    const pgPort = 40000 + Math.floor(Math.random() * 5000);
+    const dataDir = mkdtempSync(join(tmpdir(), "scottstechx-smoke-pg-"));
+    pg = new EmbeddedPostgres({
+      databaseDir: dataDir,
+      user: "app",
+      password: "app",
+      port: pgPort,
+      persistent: false,
+    });
+    await pg.initialise();
+    await pg.start();
+    await pg.createDatabase("smoke");
+    databaseUrl = `postgres://app:app@127.0.0.1:${pgPort}/smoke`;
+    console.log(`[smoke] embedded Postgres on :${pgPort}`);
+  }
+
   const child = spawn(
     process.execPath,
     ["--import", "tsx", "src/server.ts"],
@@ -53,8 +79,7 @@ async function main(): Promise<number> {
         PORT: String(PORT),
         HOST,
         JWT_SECRET: process.env.JWT_SECRET ?? "smoke-secret-must-be-at-least-32-chars-long-ok",
-        DATABASE_URL:
-          process.env.DATABASE_URL ?? "postgres://app:***@127.0.0.1:5434/smoke",
+        DATABASE_URL: databaseUrl,
         NODE_ENV: "test",
       },
       stdio: ["ignore", "inherit", "inherit"],
@@ -72,6 +97,9 @@ async function main(): Promise<number> {
   process.on("exit", cleanup);
   process.on("SIGINT", () => {
     cleanup();
+    if (pg) {
+      void pg.stop().catch(() => {});
+    }
     process.exit(130);
   });
 
@@ -79,6 +107,13 @@ async function main(): Promise<number> {
   if (!ready) {
     console.error("[smoke] FAIL: server did not become ready in time");
     cleanup();
+    if (pg) {
+      try {
+        await pg.stop();
+      } catch {
+        /* best effort */
+      }
+    }
     return 1;
   }
 
@@ -140,6 +175,13 @@ async function main(): Promise<number> {
 
   cleanup();
   await new Promise((resolve) => setTimeout(resolve, 200));
+  if (pg) {
+    try {
+      await pg.stop();
+    } catch {
+      /* best effort */
+    }
+  }
   return allPass ? 0 : 1;
 }
 

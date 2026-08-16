@@ -251,7 +251,7 @@ describe("G5 API: openapi.json matches the running service", () => {
     const specPath = join(process.cwd(), "openapi.json");
     const spec = JSON.parse(readFileSync(specPath, "utf-8"));
 
-    for (const [path, ops] of Object.entries(spec.paths as Record<string, Record<string, { responses: Record<string, unknown> }>>)) {
+    for (const [_path, ops] of Object.entries(spec.paths as Record<string, Record<string, { responses: Record<string, unknown> }>>)) {
       for (const [method, op] of Object.entries(ops)) {
         const codes = Object.keys(op.responses);
         expect(codes.length).toBeGreaterThan(0);

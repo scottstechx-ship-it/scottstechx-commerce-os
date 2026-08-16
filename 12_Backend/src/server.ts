@@ -30,6 +30,7 @@
  *     POST /api/v1/ai/reason          (rate-limited)
  */
 
+import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { AppError, NotImplementedError } from "./errors.js";
 import { runMigrations } from "./migrate.js";
@@ -140,7 +141,8 @@ export async function startServer(): Promise<FastifyInstance> {
   return app;
 }
 
-const isMain = import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`;
+const entry = process.argv[1];
+const isMain = entry != null && import.meta.url === pathToFileURL(entry).href;
 if (isMain) {
   startServer().catch((err) => {
     console.error("server failed to start:", err);

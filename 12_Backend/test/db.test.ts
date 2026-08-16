@@ -42,10 +42,10 @@ describe("G4 DB: migrations are applied and tracked", () => {
     const client = await pool.connect();
     try {
       const applied = await runMigrationsOnClient(client);
-      // Every filename should be "(already applied)". There are 6 migrations
-      // (0001..0006) after the marketplace slice was added.
+      // Every filename should be "(already applied)". There are 7 migrations
+      // (0001..0007) after auth-login was added.
       const already = applied.filter((s) => s.includes("already applied")).length;
-      expect(already).toBe(6);
+      expect(already).toBe(7);
     } finally {
       client.release();
       await closePool();

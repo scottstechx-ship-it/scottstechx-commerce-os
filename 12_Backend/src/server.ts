@@ -8,10 +8,13 @@
  *     GET  /healthz
  *     GET  /api/v1/healthz
  *     POST /api/v1/auth/google
+ *     POST /api/v1/auth/login
  *     GET  /api/v1/ai/status
  *   Authenticated (JWT):
+ *     GET  /api/v1/products
  *     POST /api/v1/orders/checkout
  *     POST /api/v1/logistics/pod
+ *     GET  /api/v1/logistics/assigned
  *     GET  /api/v1/sellers/nearby
  *     GET  /api/v1/sellers/:sellerId
  *     GET  /api/v1/seller/profile
@@ -45,6 +48,9 @@ import { registerReviewRoute } from "./modules/reviews/review.route.js";
 import { registerChatRoute } from "./modules/chat/chat.route.js";
 import { registerAssistantRoute } from "./modules/ai/assistant.route.js";
 import { registerGoogleAuthRoute } from "./modules/auth/google.route.js";
+import { registerLoginRoute } from "./modules/auth/login.route.js";
+import { registerProductsRoute } from "./modules/products/list.route.js";
+import { registerAssignedOrdersRoute } from "./modules/logistics/assigned.route.js";
 import { registerRateLimit } from "./rate-limit.js";
 import { registerSecurityHeaders } from "./security-headers.js";
 import { registerCors } from "./cors.js";
@@ -109,11 +115,14 @@ export async function buildServer(): Promise<FastifyInstance> {
 
   // Public
   await registerGoogleAuthRoute(app);
+  await registerLoginRoute(app);
   await registerAssistantRoute(app); // includes /api/v1/ai/status
 
   // Authenticated
+  await registerProductsRoute(app);
   await registerCheckoutRoute(app);
   await registerPodRoute(app);
+  await registerAssignedOrdersRoute(app);
   await registerNearbyRoute(app);
   await registerSellerDetailRoute(app);
   await registerProfileRoute(app);

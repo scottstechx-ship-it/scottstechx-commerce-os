@@ -20,6 +20,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { signToken, type AuthUser, type UserRole } from "../../auth.js";
 import { withTransaction } from "../../db.js";
+import { computeTrustTier } from "../trust/tier.js";
 
 let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 function getJwks() {
@@ -135,20 +136,6 @@ export async function googleAuth(body: GoogleAuthBody): Promise<GoogleAuthResult
     expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
     trustTier,
   };
-}
-
-async function computeTrustTier(userId: string): Promise<string> {
-  return withTransaction({ userId: null, role: null }, async (c) => {
-    const r = await c.query<{ seller_trust_score: string | null }>(
-      `SELECT seller_trust_score FROM seller_profiles WHERE user_id = $1`,
-      [userId],
-    );
-    const score = Number(r.rows[0]?.seller_trust_score ?? 0);
-    if (score >= 85) return "PLATINUM";
-    if (score >= 70) return "GOLD";
-    if (score >= 50) return "SILVER";
-    return "BRONZE";
-  });
 }
 
 export async function registerGoogleAuthRoute(app: FastifyInstance): Promise<void> {

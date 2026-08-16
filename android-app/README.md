@@ -122,9 +122,16 @@ This client targets the 12_Backend Fastify server:
 | POST   | /api/v1/logistics/pod         | driver |
 
 **The login body now also includes `integrityToken` and
-`deviceFingerprint`.** The server can ignore them, log them, or weight
-them in the trust score. The 12_Backend openapi.json was not read in
-this session, so the exact field names may need reconciliation.
+`deviceFingerprint`.** The server ignores unknown fields, so these are
+safe to send; the server will log/weight them once trust scoring adopts
+them.
+
+**Contract status:** all five endpoints above are now implemented by
+12_Backend and the wire format is camelCase end-to-end (checkout and POD
+were reconciled from snake_case). Demo phone+password credentials:
+`+256700000001` (buyer), `+256700000002` (seller), `+256700000003`
+(driver), password `demo1234`. See `12_Backend/openapi.json` for the
+canonical field names.
 
 ## Running against 12_Backend locally
 
@@ -149,8 +156,9 @@ For the Android-x86 VM specifically:
   Gradle's wrapper task has been hanging on the dependency-resolution
   phase in this environment. The toolchain is in place; the build
   itself has not been observed to complete.
-- ❌ 12_Backend `openapi.json` not read — endpoint paths and DTO
-  field names are best-effort.
+- ✅ 12_Backend contract reconciled — endpoint paths and DTO field
+  names now match `openapi.json` (camelCase end-to-end), verified with
+  101 backend tests.
 - ❌ Real-device run — no AVD or phone was connected at build time.
 - ❌ Certificate pin placeholders — `REPLACE_WITH_REAL_PIN=` in
   `NetworkModule.kt` must be filled in before a release build.

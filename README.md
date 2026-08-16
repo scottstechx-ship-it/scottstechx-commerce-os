@@ -74,7 +74,7 @@ npm run dev              # listens on :3001
 **Stack:** Kotlin · Jetpack Compose · Hilt · KSP · Material 3 · Coroutines · DataStore
 
 ```
-android-app/app/src/main/java/com/scottsstechx/commerceos/
+android-app/app/src/main/java/com/scottstechx/commerceos/
 ├── data/
 │   ├── auth/         # Google One-Tap + JWT storage
 │   ├── cache/        # DataStore + Room

@@ -63,7 +63,7 @@ async function createOrderTx(
   // 1. Load products (RLS-scoped: buyer sees only active products, by design of
   //    products policies in 0002_rls.sql — for MVP we allow all authenticated
   //    users to SELECT products, so this returns the full catalog).
-  const productIds = body.items.map((i) => i.product_id);
+  const productIds = body.items.map((i) => i.productId);
   const productsResult = await client.query<{
     id: string;
     seller_id: string;
@@ -101,10 +101,10 @@ async function createOrderTx(
   let orderCurrency: Currency | null = null;
 
   for (const line of body.items) {
-    const product = productById.get(line.product_id);
+    const product = productById.get(line.productId);
     if (!product) {
       // Shouldn't reach here due to the SELECT above, but be defensive.
-      throw new UnprocessableError(`unknown product ${line.product_id}`);
+      throw new UnprocessableError(`unknown product ${line.productId}`);
     }
     if (product.stock_quantity < line.qty) {
       throw new UnprocessableError(`insufficient stock for product ${product.id}`);
@@ -126,10 +126,10 @@ async function createOrderTx(
     totalMinor += lineTotal;
 
     items.push({
-      product_id: product.id,
+      productId: product.id,
       qty: line.qty,
-      unit_price_minor: Number(unit),
-      line_total_minor: Number(lineTotal),
+      unitPriceMinor: Number(unit),
+      lineTotalMinor: Number(lineTotal),
     });
   }
 
@@ -148,7 +148,7 @@ async function createOrderTx(
       totalMinor.toString(),
       orderCurrency,
       rate,
-      JSON.stringify(body.delivery_address),
+      JSON.stringify(body.deliveryAddress),
     ],
   );
   const orderId = orderResult.rows[0]!.id;
@@ -159,15 +159,15 @@ async function createOrderTx(
        VALUES ($1, $2, $3, $4, $5)`,
       [
         orderId,
-        line.product_id,
+        line.productId,
         line.qty,
-        productById.get(line.product_id)!.price_minor,
+        productById.get(line.productId)!.price_minor,
         orderCurrency,
       ],
     );
     await client.query(`UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2`, [
       line.qty,
-      line.product_id,
+      line.productId,
     ]);
   }
 
@@ -180,11 +180,11 @@ async function createOrderTx(
   });
 
   return {
-    order_id: orderId,
+    orderId,
     status: "created",
-    total_minor: Number(totalMinor),
+    totalMinor: Number(totalMinor),
     currency: orderCurrency!,
-    fx_rate_snapshot: rate,
+    fxRateSnapshot: rate,
     items,
   };
 }

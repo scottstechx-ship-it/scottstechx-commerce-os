@@ -84,40 +84,40 @@ async function postJson<T = unknown>(
 }
 
 const checkoutBody = {
-  items: [{ product_id: SEED.productA, qty: 2 }],
-  delivery_address: { line1: "Plot 14, Kampala Road", city: "Kampala", country: "UG" as const },
+  items: [{ productId: SEED.productA, qty: 2 }],
+  deliveryAddress: { line1: "Plot 14, Kampala Road", city: "Kampala", country: "UG" as const },
 };
 
 describe("POST /api/v1/orders/checkout", () => {
   it("creates an order with server-computed total, returns 201, persists items", async () => {
     const idem = randomIdempotencyKey();
     const r = await postJson<{
-      order_id: string;
+      orderId: string;
       status: string;
-      total_minor: number;
+      totalMinor: number;
       currency: string;
-      fx_rate_snapshot: string;
+      fxRateSnapshot: string;
       items: {
-        product_id: string;
+        productId: string;
         qty: number;
-        unit_price_minor: number;
-        line_total_minor: number;
+        unitPriceMinor: number;
+        line_totalMinor: number;
       }[];
     }>("/api/v1/orders/checkout", buyerToken, idem, checkoutBody);
 
     expect(r.status).toBe(201);
     expect(r.body.status).toBe("created");
     expect(r.body.currency).toBe("UGX");
-    expect(r.body.total_minor).toBe(2 * 2_500_000); // 2 × UGX 2,500,000 minor units
+    expect(r.body.totalMinor).toBe(2 * 2_500_000); // 2 × UGX 2,500,000 minor units
     expect(r.body.items).toHaveLength(1);
-    expect(r.body.items[0]!.line_total_minor).toBe(5_000_000);
-    expect(r.body.fx_rate_snapshot).toBe("1.00000000");
-    expect(r.body.order_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(r.body.items[0]!.lineTotalMinor).toBe(5_000_000);
+    expect(r.body.fxRateSnapshot).toBe("1.00000000");
+    expect(r.body.orderId).toMatch(/^[0-9a-f-]{36}$/);
 
     // Verify it actually landed in the DB.
     const r1 = await query<{ count: string }>(
       `SELECT count(*)::text AS count FROM order_items WHERE order_id = $1`,
-      [r.body.order_id],
+      [r.body.orderId],
     );
     expect(r1.rows[0]!.count).toBe("1");
   });
@@ -144,7 +144,7 @@ describe("POST /api/v1/orders/checkout", () => {
     const a = await postJson("/api/v1/orders/checkout", buyerToken, idem, checkoutBody);
     expect(a.status).toBe(201);
 
-    const otherBody = { ...checkoutBody, items: [{ product_id: SEED.productB, qty: 1 }] };
+    const otherBody = { ...checkoutBody, items: [{ productId: SEED.productB, qty: 1 }] };
     const b = await postJson("/api/v1/orders/checkout", buyerToken, idem, otherBody);
     expect(b.status).toBe(409);
   });
@@ -172,7 +172,7 @@ describe("POST /api/v1/orders/checkout", () => {
 describe("POST /api/v1/logistics/pod", () => {
   it("rejects a POD from a driver who is not the assigned driver (403)", async () => {
     // Buyer's checkout creates the order.
-    const co = await postJson<{ order_id: string }>(
+    const co = await postJson<{ orderId: string }>(
       "/api/v1/orders/checkout",
       buyerToken,
       randomIdempotencyKey(),
@@ -181,7 +181,7 @@ describe("POST /api/v1/logistics/pod", () => {
     expect(co.status).toBe(201);
 
     // Assign the demo driver.
-    await assignOrderToDriver(co.body.order_id);
+    await assignOrderToDriver(co.body.orderId);
 
     // Make a second driver (a real, valid UUID; this one has a driver_profile).
     await query(
@@ -197,16 +197,16 @@ describe("POST /api/v1/logistics/pod", () => {
     const otherDriverToken = await mintToken("driver", "44444444-4444-4444-8444-444444444444");
 
     const r = await postJson("/api/v1/logistics/pod", otherDriverToken, randomIdempotencyKey(), {
-      order_id: co.body.order_id,
+      orderId: co.body.orderId,
       action: "pickup",
-      gps_lat: 0.3476,
-      gps_lng: 32.5825,
+      gpsLat: 0.3476,
+      gpsLng: 32.5825,
     });
     expect(r.status).toBe(403);
   });
 
   it("rejects a POD for an order not in {assigned} with 409", async () => {
-    const co = await postJson<{ order_id: string }>(
+    const co = await postJson<{ orderId: string }>(
       "/api/v1/orders/checkout",
       buyerToken,
       randomIdempotencyKey(),
@@ -216,27 +216,27 @@ describe("POST /api/v1/logistics/pod", () => {
 
     // Order is in 'created', not 'assigned' — pickup must fail.
     // Assign the demo driver first so the 403 check passes.
-    await assignOrderToDriver(co.body.order_id);
+    await assignOrderToDriver(co.body.orderId);
 
     const r = await postJson("/api/v1/logistics/pod", driverToken, randomIdempotencyKey(), {
-      order_id: co.body.order_id,
+      orderId: co.body.orderId,
       action: "pickup",
-      gps_lat: 0.3476,
-      gps_lng: 32.5825,
+      gpsLat: 0.3476,
+      gpsLng: 32.5825,
     });
     expect(r.status).toBe(200);
     // Now the order is in picked_up. Try pickup again — should 409.
     const r2 = await postJson("/api/v1/logistics/pod", driverToken, randomIdempotencyKey(), {
-      order_id: co.body.order_id,
+      orderId: co.body.orderId,
       action: "pickup",
-      gps_lat: 0.3476,
-      gps_lng: 32.5825,
+      gpsLat: 0.3476,
+      gpsLng: 32.5825,
     });
     expect(r2.status).toBe(409);
   });
 
   it("happy path: assigned -> picked_up -> delivered", async () => {
-    const co = await postJson<{ order_id: string }>(
+    const co = await postJson<{ orderId: string }>(
       "/api/v1/orders/checkout",
       buyerToken,
       randomIdempotencyKey(),
@@ -244,22 +244,22 @@ describe("POST /api/v1/logistics/pod", () => {
     );
     expect(co.status).toBe(201);
 
-    await assignOrderToDriver(co.body.order_id);
+    await assignOrderToDriver(co.body.orderId);
 
-    const pickup = await postJson<{ order_id: string; status: string }>(
+    const pickup = await postJson<{ orderId: string; status: string }>(
       "/api/v1/logistics/pod",
       driverToken,
       randomIdempotencyKey(),
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0.3476, gps_lng: 32.5825 },
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0.3476, gpsLng: 32.5825 },
     );
     expect(pickup.status).toBe(200);
     expect(pickup.body.status).toBe("picked_up");
 
-    const deliver = await postJson<{ order_id: string; status: string }>(
+    const deliver = await postJson<{ orderId: string; status: string }>(
       "/api/v1/logistics/pod",
       driverToken,
       randomIdempotencyKey(),
-      { order_id: co.body.order_id, action: "deliver", gps_lat: 0.3476, gps_lng: 32.5825 },
+      { orderId: co.body.orderId, action: "deliver", gpsLat: 0.3476, gpsLng: 32.5825 },
     );
     expect(deliver.status).toBe(200);
     expect(deliver.body.status).toBe("delivered");
@@ -268,7 +268,7 @@ describe("POST /api/v1/logistics/pod", () => {
 
 describe("RLS cross-tenant denial", () => {
   it("an order belonging to another customer is invisible to the wrong app.user_id", async () => {
-    const co = await postJson<{ order_id: string }>(
+    const co = await postJson<{ orderId: string }>(
       "/api/v1/orders/checkout",
       buyerToken,
       randomIdempotencyKey(),
@@ -303,7 +303,7 @@ describe("RLS cross-tenant denial", () => {
         await client.query(`SET LOCAL ROLE rls_tester`);
         const x = await client.query<{ count: string }>(
           `SELECT count(*)::text AS count FROM orders WHERE id = $1`,
-          [co.body.order_id],
+          [co.body.orderId],
         );
         return x.rows[0]!.count;
       },
@@ -315,7 +315,7 @@ describe("RLS cross-tenant denial", () => {
       await client.query(`SET LOCAL ROLE rls_tester`);
       const x = await client.query<{ count: string }>(
         `SELECT count(*)::text AS count FROM orders WHERE id = $1`,
-        [co.body.order_id],
+        [co.body.orderId],
       );
       return x.rows[0]!.count;
     });

@@ -81,10 +81,10 @@ async function applyPodTx(client: PoolClient, user: AuthUser, body: PodBody): Pr
        FROM orders
       WHERE id = $1
       FOR UPDATE`,
-    [body.order_id],
+    [body.orderId],
   );
   if (orderResult.rowCount === 0) {
-    throw new NotFoundError(`order ${body.order_id} not found`);
+    throw new NotFoundError(`order ${body.orderId} not found`);
   }
   const order = orderResult.rows[0]!;
   if (order.assigned_driver_id !== driverId) {
@@ -99,20 +99,22 @@ async function applyPodTx(client: PoolClient, user: AuthUser, body: PodBody): Pr
     );
   }
 
-  // Update the order with the new status, GPS, and timestamp.
+  // Update the order with the new status, GPS, signature, and timestamp.
   if (body.action === "pickup") {
     await client.query(
       `UPDATE orders
-          SET status = $1, pod_pickup_at = now(), pod_pickup_lat = $2, pod_pickup_lng = $3
-        WHERE id = $4`,
-      [transition.to, body.gps_lat, body.gps_lng, order.id],
+          SET status = $1, pod_pickup_at = now(), pod_pickup_lat = $2, pod_pickup_lng = $3,
+              pod_signature = COALESCE($4, pod_signature)
+        WHERE id = $5`,
+      [transition.to, body.gpsLat, body.gpsLng, body.signaturePngBase64 ?? null, order.id],
     );
   } else {
     await client.query(
       `UPDATE orders
-          SET status = $1, pod_delivered_at = now(), pod_delivered_lat = $2, pod_delivered_lng = $3
-        WHERE id = $4`,
-      [transition.to, body.gps_lat, body.gps_lng, order.id],
+          SET status = $1, pod_delivered_at = now(), pod_delivered_lat = $2, pod_delivered_lng = $3,
+              pod_signature = COALESCE($4, pod_signature)
+        WHERE id = $5`,
+      [transition.to, body.gpsLat, body.gpsLng, body.signaturePngBase64 ?? null, order.id],
     );
   }
 
@@ -122,8 +124,8 @@ async function applyPodTx(client: PoolClient, user: AuthUser, body: PodBody): Pr
     resource_type: "order",
     resource_id: order.id,
     payload: {
-      gps_lat: body.gps_lat,
-      gps_lng: body.gps_lng,
+      gpsLat: body.gpsLat,
+      gpsLng: body.gpsLng,
       notes: body.notes ?? null,
     },
   });
@@ -131,7 +133,7 @@ async function applyPodTx(client: PoolClient, user: AuthUser, body: PodBody): Pr
   // Unreachable in practice but keeps the linter honest.
   void (UnprocessableError as unknown);
   return {
-    order_id: order.id,
+    orderId: order.id,
     status: transition.to as PodResponse["status"],
   };
 }

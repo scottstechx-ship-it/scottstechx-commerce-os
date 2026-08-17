@@ -88,7 +88,7 @@ cp .env.example .env
 npm test
 ```
 
-Expected: all 9 tests pass (2 trust-score + 7 api). First run downloads a
+Expected: all 113 tests pass across 8 files. First run downloads a
 ~50 MB Postgres binary into `node_modules/embedded-postgres-binaries/`
 and may take 1-2 minutes.
 
@@ -203,7 +203,7 @@ test/
 
 ## Verified results (last run, real output)
 
-`npm test` exit 0, 12/12 tests pass in ~95s:
+`npm test` exit 0, 113/113 tests pass:
   - trust-score: 2/2
   - api integration: 10/10
     - checkout happy path with server-computed total (2,500,000 UGX minor)
@@ -276,23 +276,30 @@ docker run --rm -p 3001:3001 \
 Multi-stage image, `node:22-bookworm-slim`, runs under `tini`, exposes
 `/healthz` as a health check.
 
-### Render
+### Render (easiest)
 
-`render.yaml` is a one-click Blueprint. It provisions the API service
-and a managed Postgres database, wires `DATABASE_URL` automatically, and
-deploys.
+`render.yaml` at the **repo root** is a one-click Blueprint. It builds the
+`12_Backend/Dockerfile`, provisions a managed Postgres, wires `DATABASE_URL`
+automatically, and deploys. Enter the secret keys (NVIDIA, Firebase, Nylon
+Pay) in the Render dashboard after the first deploy.
 
-### Google Cloud Run
+### Google Cloud Run (same account as Firebase)
+
+Build from the `12_Backend` directory (that's where the Dockerfile lives):
 
 ```bash
 gcloud run deploy scottstechx-api \
-  --source . \
+  --source 12_Backend \
   --region us-central1 \
   --memory 512Mi \
   --allow-unauthenticated \
   --set-env-vars "NODE_ENV=production,PORT=3001" \
   --set-secrets "JWT_SECRET=scottstechx-jwt-secret:latest,DATABASE_URL=scottstechx-db-url:latest"
 ```
+
+Note: Cloud Run does not provide Postgres — point `DATABASE_URL` at Supabase,
+Neon, or Cloud SQL (see below). `deploy/cloud-run.example.json` documents the
+full env shape.
 
 `deploy/cloud-run.example.json` documents the full env shape.
 
@@ -301,7 +308,7 @@ gcloud run deploy scottstechx-api \
 `embedded-postgres` is dev/test only. For production, point `DATABASE_URL`
 at one of:
 
-- **Supabase** — paste migrations `0001` through `0006` into the SQL
+- **Supabase** — paste migrations `0001` through `0008` into the SQL
   editor in order. The RLS policies use `current_setting('app.user_id',
   true)::uuid` which Supabase supports. Add `auth.uid() = current_setting(...)`
   to each policy if you want Supabase Auth to also work.

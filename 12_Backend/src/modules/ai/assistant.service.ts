@@ -25,7 +25,7 @@ export class AiDisabledError extends Error {
   }
 }
 
-export type AiProvider = "openai" | "anthropic" | "gemini";
+export type AiProvider = "openai" | "anthropic" | "gemini" | "nvidia";
 
 export type SuggestionType =
   | "product_description"
@@ -40,6 +40,8 @@ export type SuggestionInput = {
   draft: Record<string, unknown>;
   context?: Record<string, unknown>;
   history?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  /** Pre-fetched catalog matches to ground the answer (customer_chat). */
+  grounding?: string;
 };
 
 export type SuggestionOutput = {
@@ -51,8 +53,17 @@ export type SuggestionOutput = {
 
 export function getProvider(): AiProvider | null {
   const p = (process.env.AI_PROVIDER ?? "").toLowerCase();
-  if (p === "openai" || p === "anthropic" || p === "gemini") return p;
-  // Default to openai if a key is present.
+  // Only report a provider as enabled when its key is actually present, so
+  // /api/v1/ai/status doesn't claim "enabled" for a keyless deployment.
+  if (p === "nvidia" && process.env.NVIDIA_API_KEY) return "nvidia";
+  if (
+    (p === "openai" || p === "anthropic" || p === "gemini") &&
+    process.env.LLM_API_KEY
+  ) {
+    return p;
+  }
+  // Fall back to a provider if a matching key is present.
+  if (process.env.NVIDIA_API_KEY) return "nvidia";
   if (process.env.LLM_API_KEY) return "openai";
   return null;
 }
@@ -79,8 +90,10 @@ function systemPromptFor(type: SuggestionType): string {
         "English, no more than 4 bullet points.";
     case "customer_chat":
       return "You are a helpful, warm shopping assistant for an East African " +
-        "marketplace. Answer in 1-3 short sentences. Be honest about what you " +
-        "don't know. Never claim to be a human.";
+        "marketplace. Answer in 1-3 short sentences. If the user is asking about " +
+        "products, answer from the provided catalog matches (name, price, stock) " +
+        "and say so when nothing matches. Be honest about what you don't know. " +
+        "Never claim to be a human.";
     case "trust_reasoning":
       return "You are a trust analyst. Given the seller profile data, produce a " +
         "1-paragraph plain-language explanation of why this seller has the rank " +
@@ -90,11 +103,14 @@ function systemPromptFor(type: SuggestionType): string {
 
 export async function callAi(input: SuggestionInput): Promise<SuggestionOutput> {
   const provider = getProvider();
-  const apiKey = process.env.LLM_API_KEY;
+  const apiKey = provider === "nvidia" ? process.env.NVIDIA_API_KEY : process.env.LLM_API_KEY;
   if (!provider || !apiKey) throw new AiDisabledError();
 
   const sys = systemPromptFor(input.type);
-  const userText = JSON.stringify({ draft: input.draft, context: input.context ?? {} });
+  const context = input.grounding
+    ? { ...(input.context ?? {}), catalog: input.grounding }
+    : (input.context ?? {});
+  const userText = JSON.stringify({ draft: input.draft, context });
 
   if (provider === "openai") {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -149,6 +165,45 @@ export async function callAi(input: SuggestionInput): Promise<SuggestionOutput> 
       content?: Array<{ type: string; text?: string }>;
     };
     const suggestion = data.content?.find((b) => b.type === "text")?.text?.trim() ?? "";
+    return {
+      suggestion,
+      reasoning: "Based on the seller draft and marketplace context.",
+      confidence: 0.75,
+      provider,
+    };
+  }
+
+  // nvidia — OpenAI-compatible endpoint (NVIDIA NIM / Nemotron).
+  if (provider === "nvidia") {
+    const base = process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1";
+    const model = process.env.AI_MODEL ?? "nvidia/nemotron-3-ultra-550b-a55b";
+    const body: Record<string, unknown> = {
+      model,
+      temperature: 1,
+      top_p: 0.95,
+      max_tokens: 16384,
+      messages: [
+        { role: "system", content: sys },
+        ...(input.history ?? []).map((m) => ({ role: m.role, content: m.content })),
+        { role: "user", content: userText },
+      ],
+    };
+    if ((process.env.AI_REASONING ?? "") === "1") {
+      body.extra_body = {
+        chat_template_kwargs: { enable_thinking: true },
+        reasoning_budget: 16384,
+      };
+    }
+    const r = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`nvidia ${r.status}: ${await r.text()}`);
+    const data = (await r.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const suggestion = data.choices?.[0]?.message?.content?.trim() ?? "";
     return {
       suggestion,
       reasoning: "Based on the seller draft and marketplace context.",

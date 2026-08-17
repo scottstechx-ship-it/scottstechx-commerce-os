@@ -1,0 +1,11 @@
+# Keep the Docker build context lean and secrets out of the image.
+# (The Dockerfile COPYs package.json, src, test, migrations, tsconfig, and
+# openapi.json explicitly — so only exclude things it never needs.)
+node_modules
+dist
+coverage
+.env
+.env.*
+*.log
+deploy
+.git

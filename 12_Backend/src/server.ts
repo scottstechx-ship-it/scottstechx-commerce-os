@@ -8,10 +8,17 @@
  *     GET  /healthz
  *     GET  /api/v1/healthz
  *     POST /api/v1/auth/google
+ *     POST /api/v1/auth/login
+ *     POST /api/v1/auth/firebase
+ *     POST /api/v1/auth/register
+ *     POST /api/v1/payments/webhook
  *     GET  /api/v1/ai/status
  *   Authenticated (JWT):
+ *     GET  /api/v1/products
  *     POST /api/v1/orders/checkout
+ *     POST /api/v1/payments/collect
  *     POST /api/v1/logistics/pod
+ *     GET  /api/v1/logistics/assigned
  *     GET  /api/v1/sellers/nearby
  *     GET  /api/v1/sellers/:sellerId
  *     GET  /api/v1/seller/profile
@@ -30,7 +37,10 @@
  *     POST /api/v1/ai/reason          (rate-limited)
  */
 
+import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import fastifyRawBody from "fastify-raw-body";
+import { loadEnvFile } from "./env.js";
 import { AppError, NotImplementedError } from "./errors.js";
 import { runMigrations } from "./migrate.js";
 import { registerCheckoutRoute } from "./modules/orders/checkout.route.js";
@@ -44,6 +54,12 @@ import { registerReviewRoute } from "./modules/reviews/review.route.js";
 import { registerChatRoute } from "./modules/chat/chat.route.js";
 import { registerAssistantRoute } from "./modules/ai/assistant.route.js";
 import { registerGoogleAuthRoute } from "./modules/auth/google.route.js";
+import { registerLoginRoute } from "./modules/auth/login.route.js";
+import { registerFirebaseAuthRoute } from "./modules/auth/firebase.route.js";
+import { registerRegisterRoute } from "./modules/auth/register.route.js";
+import { registerProductsRoute } from "./modules/products/list.route.js";
+import { registerAssignedOrdersRoute } from "./modules/logistics/assigned.route.js";
+import { registerPaymentsRoute } from "./modules/payments/payments.route.js";
 import { registerRateLimit } from "./rate-limit.js";
 import { registerSecurityHeaders } from "./security-headers.js";
 import { registerCors } from "./cors.js";
@@ -103,16 +119,27 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerCors(app);
   await registerRateLimit(app);
 
+  // Raw body capture (used by the payment webhook to verify HMAC signatures
+  // against the exact bytes the provider signed). Must be registered before
+  // the routes that opt into it.
+  await app.register(fastifyRawBody, { global: false });
+
   app.get("/healthz", async () => ({ ok: true }));
   app.get("/api/v1/healthz", async () => ({ ok: true, version: "1.0.0" }));
 
   // Public
   await registerGoogleAuthRoute(app);
+  await registerLoginRoute(app);
+  await registerFirebaseAuthRoute(app);
+  await registerRegisterRoute(app);
   await registerAssistantRoute(app); // includes /api/v1/ai/status
+  await registerPaymentsRoute(app); // collect (auth) + webhook (signed)
 
   // Authenticated
+  await registerProductsRoute(app);
   await registerCheckoutRoute(app);
   await registerPodRoute(app);
+  await registerAssignedOrdersRoute(app);
   await registerNearbyRoute(app);
   await registerSellerDetailRoute(app);
   await registerProfileRoute(app);
@@ -125,11 +152,15 @@ export async function buildServer(): Promise<FastifyInstance> {
 }
 
 export async function startServer(): Promise<FastifyInstance> {
+  // Honor a local .env (gitignored) so dev/`node dist/server.js` pick up
+  // keys without exporting them. Explicit environment always wins.
+  loadEnvFile();
+
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = "dev-secret-do-not-use-in-prod-min-32-chars-long-please";
   }
   if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "postgres://app:***@127.0.0.1:5433/scottstechx";
+    process.env.DATABASE_URL = "postgres://app:app@127.0.0.1:5433/scottstechx";
   }
   const applied = await runMigrations();
   console.log("[migrate] applied:", applied);
@@ -140,7 +171,8 @@ export async function startServer(): Promise<FastifyInstance> {
   return app;
 }
 
-const isMain = import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`;
+const entry = process.argv[1];
+const isMain = entry != null && import.meta.url === pathToFileURL(entry).href;
 if (isMain) {
   startServer().catch((err) => {
     console.error("server failed to start:", err);

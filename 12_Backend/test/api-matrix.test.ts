@@ -48,8 +48,8 @@ async function postJson<T = unknown>(path: string, headers: Record<string, strin
 }
 
 const validCheckout = {
-  items: [{ product_id: SEED.productA, qty: 1 }],
-  delivery_address: { line1: "Plot 1", city: "Kampala", country: "UG" as const },
+  items: [{ productId: SEED.productA, qty: 1 }],
+  deliveryAddress: { line1: "Plot 1", city: "Kampala", country: "UG" as const },
 };
 
 describe("G5 API: /api/v1/orders/checkout matrix", () => {
@@ -58,16 +58,16 @@ describe("G5 API: /api/v1/orders/checkout matrix", () => {
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     expect(r.status).toBe(201);
-    const body = r.body as { order_id: string; status: string; total_minor: number };
-    expect(body.order_id).toMatch(/^[0-9a-f-]{36}$/);
+    const body = r.body as { orderId: string; status: string; totalMinor: number };
+    expect(body.orderId).toMatch(/^[0-9a-f-]{36}$/);
     expect(body.status).toBe("created");
-    expect(body.total_minor).toBe(2_500_000);
+    expect(body.totalMinor).toBe(2_500_000);
   });
 
   it("invalid input: 400 (no items)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [], delivery_address: validCheckout.delivery_address });
+      { items: [], deliveryAddress: validCheckout.deliveryAddress });
     expect(r.status).toBe(400);
   });
 
@@ -87,7 +87,7 @@ describe("G5 API: /api/v1/orders/checkout matrix", () => {
   it("invalid input: 400 (qty=0)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: SEED.productA, qty: 0 }], delivery_address: validCheckout.delivery_address });
+      { items: [{ productId: SEED.productA, qty: 0 }], deliveryAddress: validCheckout.deliveryAddress });
     expect(r.status).toBe(400);
   });
 
@@ -119,10 +119,10 @@ describe("G5 API: /api/v1/orders/checkout matrix", () => {
     expect(r.status).toBe(400);
   });
 
-  it("missing fields: 400 (no delivery_address)", async () => {
+  it("missing fields: 400 (no deliveryAddress)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: SEED.productA, qty: 1 }] });
+      { items: [{ productId: SEED.productA, qty: 1 }] });
     expect(r.status).toBe(400);
   });
 
@@ -144,7 +144,7 @@ describe("G5 API: /api/v1/orders/checkout matrix", () => {
     expect(a.status).toBe(201);
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": k },
-      { items: [{ product_id: SEED.productB, qty: 1 }], delivery_address: validCheckout.delivery_address });
+      { items: [{ productId: SEED.productB, qty: 1 }], deliveryAddress: validCheckout.deliveryAddress });
     expect(r.status).toBe(409);
   });
 
@@ -153,86 +153,86 @@ describe("G5 API: /api/v1/orders/checkout matrix", () => {
     // passes zod — service returns 422 for stock, not 400 for invalid input.
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: SEED.productA, qty: 500 }], delivery_address: validCheckout.delivery_address });
+      { items: [{ productId: SEED.productA, qty: 500 }], deliveryAddress: validCheckout.deliveryAddress });
     expect(r.status).toBe(422);
   });
 });
 
 describe("G5 API: /api/v1/logistics/pod matrix", () => {
   it("success path: 200 pickup when assigned", async () => {
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     expect(co.status).toBe(201);
-    await query(`UPDATE orders SET assigned_driver_id = $1, status = 'assigned' WHERE id = $2`, [SEED.driverId, co.body.order_id]);
+    await query(`UPDATE orders SET assigned_driver_id = $1, status = 'assigned' WHERE id = $2`, [SEED.driverId, co.body.orderId]);
 
-    const r = await postJson<{ order_id: string; status: string }>("/api/v1/logistics/pod",
+    const r = await postJson<{ orderId: string; status: string }>("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0.3476, gps_lng: 32.5825 });
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0.3476, gpsLng: 32.5825 });
     expect(r.status).toBe(200);
     expect(r.body.status).toBe("picked_up");
   });
 
-  it("invalid input: 400 (no order_id)", async () => {
+  it("invalid input: 400 (no orderId)", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(400);
   });
 
-  it("invalid input: 400 (gps_lat out of range)", async () => {
+  it("invalid input: 400 (gpsLat out of range)", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: SEED.productA, action: "pickup", gps_lat: 999, gps_lng: 0 });
+      { orderId: SEED.productA, action: "pickup", gpsLat: 999, gpsLng: 0 });
     expect(r.status).toBe(400);
   });
 
   it("unauthenticated: 401", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "idempotency-key": randomIdempotencyKey() },
-      { order_id: SEED.productA, action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: SEED.productA, action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(401);
   });
 
   it("forbidden: 403 (buyer calls POD)", async () => {
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(403);
   });
 
   it("not-found: 404 (random order uuid)", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: "55555555-5555-4555-8555-555555555555", action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: "55555555-5555-4555-8555-555555555555", action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(404);
   });
 
   it("conflict: 409 (pickup on order not in 'assigned')", async () => {
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     // Order is in 'created', not 'assigned' — and the demo driver is not assigned.
     // So 403 (not assigned) is the correct response. We assign the driver and
     // then do pickup -> 200; then attempt pickup again -> 409 (already picked_up).
-    await query(`UPDATE orders SET assigned_driver_id = $1, status = 'assigned' WHERE id = $2`, [SEED.driverId, co.body.order_id]);
+    await query(`UPDATE orders SET assigned_driver_id = $1, status = 'assigned' WHERE id = $2`, [SEED.driverId, co.body.orderId]);
     const p1 = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(p1.status).toBe(200);
     const p2 = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(p2.status).toBe(409);
   });
 
   it("missing fields: 400 (no Idempotency-Key)", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}` },
-      { order_id: SEED.productA, action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { orderId: SEED.productA, action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(400);
   });
 });
@@ -251,7 +251,7 @@ describe("G5 API: openapi.json matches the running service", () => {
     const specPath = join(process.cwd(), "openapi.json");
     const spec = JSON.parse(readFileSync(specPath, "utf-8"));
 
-    for (const [path, ops] of Object.entries(spec.paths as Record<string, Record<string, { responses: Record<string, unknown> }>>)) {
+    for (const [_path, ops] of Object.entries(spec.paths as Record<string, Record<string, { responses: Record<string, unknown> }>>)) {
       for (const [method, op] of Object.entries(ops)) {
         const codes = Object.keys(op.responses);
         expect(codes.length).toBeGreaterThan(0);

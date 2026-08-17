@@ -22,7 +22,7 @@ import { query, withTransaction } from "../src/db.js";
 let baseUrl = "";
 let buyerToken = "";
 let driverToken = "";
-let otherBuyerId = "88888888-8888-4888-8888-888888888888";
+const otherBuyerId = "88888888-8888-4888-8888-888888888888";
 
 beforeAll(async () => {
   await setupOnce();
@@ -52,8 +52,8 @@ async function postJson<T = unknown>(path: string, headers: Record<string, strin
 }
 
 const validCheckout = {
-  items: [{ product_id: SEED.productA, qty: 1 }],
-  delivery_address: { line1: "Plot 1", city: "Kampala", country: "UG" as const },
+  items: [{ productId: SEED.productA, qty: 1 }],
+  deliveryAddress: { line1: "Plot 1", city: "Kampala", country: "UG" as const },
 };
 
 describe("G3 Security: JWT validation", () => {
@@ -141,28 +141,28 @@ describe("G3 Security: input validation", () => {
   it("rejects a checkout with no items (400 validation)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [], delivery_address: { line1: "x", city: "y", country: "UG" } });
+      { items: [], deliveryAddress: { line1: "x", city: "y", country: "UG" } });
     expect(r.status).toBe(400);
   });
 
   it("rejects a checkout with an invalid country code (400)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: SEED.productA, qty: 1 }], delivery_address: { line1: "x", city: "y", country: "US" } });
+      { items: [{ productId: SEED.productA, qty: 1 }], deliveryAddress: { line1: "x", city: "y", country: "US" } });
     expect(r.status).toBe(400);
   });
 
   it("rejects a checkout with a malformed product UUID (400)", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: "not-a-uuid", qty: 1 }], delivery_address: { line1: "x", city: "y", country: "UG" } });
+      { items: [{ productId: "not-a-uuid", qty: 1 }], deliveryAddress: { line1: "x", city: "y", country: "UG" } });
     expect(r.status).toBe(400);
   });
 
-  it("rejects a POD with no order_id (400)", async () => {
+  it("rejects a POD with no orderId (400)", async () => {
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${driverToken}`, "idempotency-key": randomIdempotencyKey() },
-      { action: "pickup", gps_lat: 0, gps_lng: 0 });
+      { action: "pickup", gpsLat: 0, gpsLng: 0 });
     expect(r.status).toBe(400);
   });
 
@@ -184,26 +184,25 @@ describe("G3 Security: authorisation (role checks)", () => {
 
   it("blocks a buyer from calling POD (403)", async () => {
     // First create an order as the buyer
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     expect(co.status).toBe(201);
 
     const r = await postJson("/api/v1/logistics/pod",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { order_id: co.body.order_id, action: "pickup", gps_lat: 0.3476, gps_lng: 32.5825 });
+      { orderId: co.body.orderId, action: "pickup", gpsLat: 0.3476, gpsLng: 32.5825 });
     expect(r.status).toBe(403);
   });
 });
 
 describe("G3 Security: RLS — cross-tenant denial", () => {
   it("a buyer cannot see another buyer's order", async () => {
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     expect(co.status).toBe(201);
 
-    const otherToken = await mintToken("buyer", otherBuyerId);
     // Other buyer cannot even probe the order via a SELECT — RLS denies.
     // We SET LOCAL ROLE rls_tester (no BYPASSRLS) to enforce RLS for the
     // probe connection; the postgres superuser would bypass it.
@@ -220,7 +219,7 @@ describe("G3 Security: RLS — cross-tenant denial", () => {
         await client.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO rls_tester`);
         await client.query(`ALTER ROLE rls_tester NOBYPASSRLS`);
         await client.query(`SET LOCAL ROLE rls_tester`);
-        const r = await client.query(`SELECT id FROM orders WHERE id = $1`, [co.body.order_id]);
+        const r = await client.query(`SELECT id FROM orders WHERE id = $1`, [co.body.orderId]);
         return r.rowCount ?? 0;
       },
     );
@@ -228,7 +227,7 @@ describe("G3 Security: RLS — cross-tenant denial", () => {
   });
 
   it("a driver who is not assigned cannot see the order (RLS)", async () => {
-    const co = await postJson<{ order_id: string }>("/api/v1/orders/checkout",
+    const co = await postJson<{ orderId: string }>("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
       validCheckout);
     expect(co.status).toBe(201);
@@ -239,7 +238,7 @@ describe("G3 Security: RLS — cross-tenant denial", () => {
       { userId: otherDriverId, role: "driver" },
       async (client) => {
         await client.query(`SET LOCAL ROLE rls_tester`);
-        const r = await client.query(`SELECT id FROM orders WHERE id = $1`, [co.body.order_id]);
+        const r = await client.query(`SELECT id FROM orders WHERE id = $1`, [co.body.orderId]);
         return r.rowCount ?? 0;
       },
     );
@@ -248,11 +247,11 @@ describe("G3 Security: RLS — cross-tenant denial", () => {
 });
 
 describe("G3 Security: SQL injection resistance", () => {
-  it("rejects a checkout with a product_id that contains SQL metacharacters", async () => {
+  it("rejects a checkout with a productId that contains SQL metacharacters", async () => {
     const r = await postJson("/api/v1/orders/checkout",
       { "authorization": `Bearer ${buyerToken}`, "idempotency-key": randomIdempotencyKey() },
-      { items: [{ product_id: "'; DROP TABLE products; --", qty: 1 }],
-        delivery_address: { line1: "x", city: "y", country: "UG" } });
+      { items: [{ productId: "'; DROP TABLE products; --", qty: 1 }],
+        deliveryAddress: { line1: "x", city: "y", country: "UG" } });
     expect(r.status).toBe(400); // zod rejects because it is not a uuid
   });
 

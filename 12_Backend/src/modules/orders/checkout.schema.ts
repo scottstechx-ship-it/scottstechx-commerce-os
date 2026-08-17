@@ -2,6 +2,8 @@
  * Zod schema for POST /api/v1/orders/checkout
  *
  * NOTE: No prices, no totals, no driver_id. All of those are server-derived.
+ * Field names are camelCase to match the Android client and the rest of the
+ * marketplace endpoints.
  */
 
 import { z } from "zod";
@@ -10,13 +12,13 @@ export const checkoutBodySchema = z.object({
   items: z
     .array(
       z.object({
-        product_id: z.string().uuid(),
+        productId: z.string().uuid(),
         qty: z.number().int().min(1).max(999),
       }),
     )
     .min(1)
     .max(50),
-  delivery_address: z.object({
+  deliveryAddress: z.object({
     line1: z.string().min(1).max(200),
     city: z.string().min(1).max(100),
     country: z.literal("UG"),
@@ -26,7 +28,7 @@ export const checkoutBodySchema = z.object({
 export type CheckoutBody = z.infer<typeof checkoutBodySchema>;
 
 export const checkoutResponseSchema = z.object({
-  order_id: z.string().uuid(),
+  orderId: z.string().uuid(),
   status: z.enum([
     "created",
     "paid",
@@ -36,15 +38,15 @@ export const checkoutResponseSchema = z.object({
     "cancelled",
     "refunded",
   ]),
-  total_minor: z.number().int().nonnegative(),
+  totalMinor: z.number().int().nonnegative(),
   currency: z.string().length(3),
-  fx_rate_snapshot: z.string(),
+  fxRateSnapshot: z.string(),
   items: z.array(
     z.object({
-      product_id: z.string().uuid(),
+      productId: z.string().uuid(),
       qty: z.number().int(),
-      unit_price_minor: z.number().int().nonnegative(),
-      line_total_minor: z.number().int().nonnegative(),
+      unitPriceMinor: z.number().int().nonnegative(),
+      lineTotalMinor: z.number().int().nonnegative(),
     }),
   ),
 });

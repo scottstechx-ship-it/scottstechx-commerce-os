@@ -13,7 +13,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "tsx src/smoke.ts"
+    "smoke": "tsx src/smoke.ts",
+    "dev:embedded": "tsx src/dev.ts"
   },
   "dependencies": {
     "@fastify/multipart": "^10.1.0",

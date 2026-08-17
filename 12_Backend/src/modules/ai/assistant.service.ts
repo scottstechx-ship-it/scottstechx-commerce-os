@@ -173,7 +173,7 @@ export async function callAi(input: SuggestionInput): Promise<SuggestionOutput> 
     const model = process.env.AI_MODEL ?? "nvidia/nemotron-3-ultra-550b-a55b";
     const body: Record<string, unknown> = {
       model,
-      temperature: 0.4,
+      temperature: 1,
       top_p: 0.95,
       max_tokens: 16384,
       messages: [

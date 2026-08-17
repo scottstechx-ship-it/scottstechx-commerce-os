@@ -40,6 +40,7 @@
 import { pathToFileURL } from "node:url";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import fastifyRawBody from "fastify-raw-body";
+import { loadEnvFile } from "./env.js";
 import { AppError, NotImplementedError } from "./errors.js";
 import { runMigrations } from "./migrate.js";
 import { registerCheckoutRoute } from "./modules/orders/checkout.route.js";
@@ -151,11 +152,15 @@ export async function buildServer(): Promise<FastifyInstance> {
 }
 
 export async function startServer(): Promise<FastifyInstance> {
+  // Honor a local .env (gitignored) so dev/`node dist/server.js` pick up
+  // keys without exporting them. Explicit environment always wins.
+  loadEnvFile();
+
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = "dev-secret-do-not-use-in-prod-min-32-chars-long-please";
   }
   if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "postgres://app:***@127.0.0.1:5433/scottstechx";
+    process.env.DATABASE_URL = "postgres://app:app@127.0.0.1:5433/scottstechx";
   }
   const applied = await runMigrations();
   console.log("[migrate] applied:", applied);

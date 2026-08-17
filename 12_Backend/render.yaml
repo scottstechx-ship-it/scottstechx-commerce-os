@@ -29,7 +29,30 @@ services:
         sync: false
       - key: LLM_API_KEY
         sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
       - key: GOOGLE_CLIENT_ID
+        sync: false
+      # Firebase Auth (optional). FIREBASE_ADMIN_CREDENTIAL_JSON = the full
+      # service-account JSON as a single-line secret.
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_ADMIN_CREDENTIAL_JSON
+        sync: false
+      # Nylon Pay (optional). PAYMENT_PROVIDER=demo for local/dev only.
+      - key: NYLONPAY_API_KEY
+        sync: false
+      - key: NYLONPAY_API_SECRET
+        sync: false
+      - key: NYLONPAY_BASE_URL
+        sync: false
+      - key: NYLONPAY_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMENT_PROVIDER
         sync: false
     autoDeploy: true
 

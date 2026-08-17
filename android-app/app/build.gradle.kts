@@ -36,6 +36,19 @@ android {
             (project.findProperty("marketingBaseUrl") as String?) ?: "https://scottstechx.example/"
         buildConfigField("String", "MARKETING_BASE_URL", "\"$marketingBaseUrl\"")
 
+        // Firebase Auth config. Populate from the Firebase console web-app
+        // config (Project settings -> General -> Your apps -> Web). The
+        // google-services.json approach is not used, so the build works
+        // without a generated file; provide these via -P flags or gradle.properties.
+        val firebaseApiKey: String = (project.findProperty("firebaseApiKey") as String?) ?: ""
+        val firebaseAppId: String = (project.findProperty("firebaseAppId") as String?) ?: ""
+        val firebaseProjectId: String = (project.findProperty("firebaseProjectId") as String?) ?: "scottstechx-52bab"
+        val firebaseSenderId: String = (project.findProperty("firebaseSenderId") as String?) ?: ""
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"$firebaseAppId\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$firebaseProjectId\"")
+        buildConfigField("String", "FIREBASE_SENDER_ID", "\"$firebaseSenderId\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -155,6 +168,10 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // Firebase Auth (email/password signup + Google Sign-In)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
 
     // Unit tests
     testImplementation(libs.junit)

@@ -88,7 +88,7 @@ cp .env.example .env
 npm test
 ```
 
-Expected: all 9 tests pass (2 trust-score + 7 api). First run downloads a
+Expected: all 113 tests pass across 8 files. First run downloads a
 ~50 MB Postgres binary into `node_modules/embedded-postgres-binaries/`
 and may take 1-2 minutes.
 
@@ -203,7 +203,7 @@ test/
 
 ## Verified results (last run, real output)
 
-`npm test` exit 0, 12/12 tests pass in ~95s:
+`npm test` exit 0, 113/113 tests pass:
   - trust-score: 2/2
   - api integration: 10/10
     - checkout happy path with server-computed total (2,500,000 UGX minor)

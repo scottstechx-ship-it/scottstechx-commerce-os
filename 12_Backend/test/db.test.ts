@@ -42,10 +42,10 @@ describe("G4 DB: migrations are applied and tracked", () => {
     const client = await pool.connect();
     try {
       const applied = await runMigrationsOnClient(client);
-      // Every filename should be "(already applied)". There are 7 migrations
-      // (0001..0007) after auth-login was added.
+      // Every filename should be "(already applied)". There are 8 migrations
+      // (0001..0008) after payments + Firebase Auth were added.
       const already = applied.filter((s) => s.includes("already applied")).length;
-      expect(already).toBe(7);
+      expect(already).toBe(8);
     } finally {
       client.release();
       await closePool();

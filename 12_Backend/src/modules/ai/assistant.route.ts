@@ -9,6 +9,7 @@ import {
   type SuggestionType,
 } from "./assistant.service.js";
 import { withTransaction } from "../../db.js";
+import { searchCatalogForQuery, formatCatalogHits } from "./catalog.js";
 
 const sellerSuggestSchema = z.object({
   type: z.enum([
@@ -90,10 +91,12 @@ export async function registerAssistantRoute(app: FastifyInstance): Promise<void
       const user = getAuthUser(request);
       const body = customerChatSchema.parse(request.body);
       try {
+        const catalogHits = await searchCatalogForQuery(user, body.message);
         const out = await callAi({
           type: "customer_chat",
           draft: { message: body.message },
           history: body.history,
+          grounding: formatCatalogHits(catalogHits),
         });
         await withTransaction(
           { userId: user.id, role: user.role },

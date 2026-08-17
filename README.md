@@ -9,7 +9,7 @@
 ![Backend](https://img.shields.io/badge/Backend-Fastify_5-202020?style=for-the-badge&logo=fastify&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-26%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![DB](https://img.shields.io/badge/Database-Postgres_16-336791?style=for-the-badge&logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-101_passing-22c55e?style=for-the-badge&logo=vitest&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-113_passing-22c55e?style=for-the-badge&logo=vitest&logoColor=white)
 
 </div>
 
@@ -21,10 +21,10 @@ A **production-ready marketplace platform** built for Uganda-style mass-market u
 
 - 🛡️ **Trust-gated** — every action gated by JWT + role + trust score
 - 🏪 **Three-sided** — buyer / seller / driver flows in one codebase
-- 🤖 **AI seller + customer assist** — Gemini-powered chat for listings & support
+- 🤖 **AI assist** — NVIDIA Nemotron (via NIM), grounded in the live product catalog
 - 📍 **Location-ranked nearby sellers** — geo queries on Postgres
-- 💸 **Mobile-money native** — built for MTN/Airtel, not cards
-- 🔐 **Google One-Tap sign-in** — frictionless Android auth
+- 💸 **Nylon Pay mobile-money** — MTN/Airtel via the official SDK + webhooks
+- 🔐 **Firebase Auth** — email/password signup + Google One-Tap
 - 🧱 **Modular monolith** — 12 feature modules, easy to extract later
 
 ---
@@ -38,7 +38,7 @@ A **production-ready marketplace platform** built for Uganda-style mass-market u
 ├── src/
 │   ├── server.ts
 │   └── modules/
-│       ├── auth/      # JWT + Google One-Tap
+│       ├── auth/      # JWT + Firebase Auth + phone login
 │       ├── sellers/   # seller onboarding, listings
 │       ├── orders/    # cart, checkout, order state machine
 │       ├── payments/  # mobile-money adapter
@@ -47,10 +47,10 @@ A **production-ready marketplace platform** built for Uganda-style mass-market u
 │       ├── chat/      # buyer↔seller messaging
 │       ├── logistics/ # driver matching, route hints
 │       ├── fx/        # UGX/USD/EUR rate snapshots
-│       ├── ai/        # Gemini-powered assist
+│       ├── ai/        # NVIDIA Nemotron assist + catalog grounding
 │       └── audit/     # tamper-evident event log
 ├── migrations/
-├── test/              # 101 vitest tests
+├── test/              # 113 vitest tests
 ├── Dockerfile
 ├── render.yaml        # one-click Render deploy
 └── openapi.json
@@ -61,7 +61,7 @@ A **production-ready marketplace platform** built for Uganda-style mass-market u
 cd 12_Backend
 npm install
 cp .env.example .env     # fill JWT_SECRET, DATABASE_URL
-npm test                 # 101 tests pass
+npm test                 # 113 tests pass
 npm run dev              # listens on :3001
 ```
 
@@ -124,7 +124,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | Metric | Value |
 |---|---|
 | Backend modules | **12** |
-| Backend tests | **101 passing** |
+| Backend tests | **113 passing** |
 | Compose screens | **20+** |
 | Android min/target SDK | **26 / 34** |
 | Postgres version | **16** |

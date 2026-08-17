@@ -1,12 +1,17 @@
 # Render.com one-click deploy for ScottsTechX backend.
-# - Uses the included Dockerfile.
+# - Builds the Dockerfile in 12_Backend/ (rootDir) and runs it on :3001.
 # - Connects to a managed Postgres (Render offers free tier).
 # - Health check hits /healthz.
+# - Secret keys (Nylon Pay, NVIDIA, Firebase) are entered in the Render
+#   dashboard after first deploy; the `sync: false` entries are placeholders
+#   so they show up in the environment list.
 
 services:
   - type: web
     name: scottstechx-api
     runtime: docker
+    rootDir: 12_Backend
+    dockerfilePath: 12_Backend/Dockerfile
     plan: starter
     healthCheckPath: /healthz
     envVars:
@@ -24,12 +29,33 @@ services:
         value: info
       - key: ALLOWED_ORIGINS
         value: https://admin.scottstechx.example
-      # AI is optional. Set in the Render dashboard after first deploy.
+      # AI — NVIDIA Nemotron (via NIM). Set the key in the Render dashboard.
       - key: AI_PROVIDER
+        value: nvidia
+      - key: NVIDIA_API_KEY
         sync: false
-      - key: LLM_API_KEY
+      - key: NVIDIA_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      # Firebase Auth (optional). FIREBASE_ADMIN_CREDENTIAL_JSON = the full
+      # service-account JSON as a single-line secret.
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_ADMIN_CREDENTIAL_JSON
         sync: false
       - key: GOOGLE_CLIENT_ID
+        sync: false
+      # Nylon Pay (optional). PAYMENT_PROVIDER=demo for local/dev only.
+      - key: NYLONPAY_API_KEY
+        sync: false
+      - key: NYLONPAY_API_SECRET
+        sync: false
+      - key: NYLONPAY_BASE_URL
+        sync: false
+      - key: NYLONPAY_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMENT_PROVIDER
         sync: false
     autoDeploy: true
 

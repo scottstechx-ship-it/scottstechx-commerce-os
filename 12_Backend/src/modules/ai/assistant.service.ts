@@ -53,7 +53,13 @@ export type SuggestionOutput = {
 
 export function getProvider(): AiProvider | null {
   const p = (process.env.AI_PROVIDER ?? "").toLowerCase();
-  if (p === "openai" || p === "anthropic" || p === "gemini" || p === "nvidia") {
+  // Only report a provider as enabled when its key is actually present, so
+  // /api/v1/ai/status doesn't claim "enabled" for a keyless deployment.
+  if (p === "nvidia" && process.env.NVIDIA_API_KEY) return "nvidia";
+  if (
+    (p === "openai" || p === "anthropic" || p === "gemini") &&
+    process.env.LLM_API_KEY
+  ) {
     return p;
   }
   // Fall back to a provider if a matching key is present.
